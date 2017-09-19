@@ -46,7 +46,7 @@ timeSinceFire <- function(input, output, session, rasters, polygons) {
 
   output$timeSinceFire2 <- renderLeaflet({
     leafZoom <- leafletZoomInit
-    polyFull <- polygonInput()$polygon # leaflet projection, Full scale
+    polyFull <- polygonsInput() # leaflet projection, Full scale
 
     pol <- polygons[[length(polygons)]]
     shpStudyRegionFullLFLT <- spTransform(shpStudyRegionFull, crs(polyFull))
@@ -86,7 +86,19 @@ timeSinceFire <- function(input, output, session, rasters, polygons) {
 
   proxy <- leafletProxy("timeSinceFire2")
 
-  callModule(polygonsUpdater, "polygonsUpdater", proxy, polygonInput, group = "Fire return interval", fillOpacity = 0.3, weight = 1, color = "blue", fillColor = polygonInput()$fillColor)
+  polygonsInput <- reactive({
+    sliderVal <- callModule(slider, "sliderPolygons")
+    sliderValue <-
+      if(is.null(sliderVal())) {
+        1
+      } else {
+        sliderVal()
+      }
+    spTransform(shpStudyRegionFull, crs(polygons[[3]]))
+  })
+
+  callModule(polygonsUpdater, "polygonsUpdater", proxy, polygons = polygonsInput, group = "Fire return interval", fillOpacity = 0.3, weight = 1,
+             color = "blue", fillColor = ~colorFactor("Spectral", fireReturnInterval)(fireReturnInterval))
 
   urlTemplate <- reactive(file.path(studyArea,
                                     paste0("outrstTimeSinceFire_year",
@@ -138,29 +150,6 @@ timeSinceFire <- function(input, output, session, rasters, polygons) {
 
     }
     list(r=r, sliderVal=sliderValue)
-  })
-
-  polygonInput <- reactive({
-    sliderVal <- callModule(slider, "sliderPolygons")
-    sliderValue <-
-      if(is.null(sliderVal())) {
-        1
-      } else {
-        sliderVal()
-      }
-    fillColor <-
-      if(sliderValue %% 2 == 0) {
-        ~colorFactor("Spectral", fireReturnInterval)(fireReturnInterval)
-      } else {
-        "Spectral"
-      }
-    polygon <-
-      if(sliderValue %% 2 == 0) {
-        spTransform(shpStudyRegionFull, crs(polygons[[1 + length(polygons)/2]]))
-      } else {
-        polygons[[1]]
-      }
-    list(polygon = polygon, fillColor = fillColor)
   })
 
   observe({
